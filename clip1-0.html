@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="style.css">
+    <script type="text/javascript" src="http://qiniu.wbdev.cn/js/jq1.10.min.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <input type="file" name="" id="upFile" accept="image/*">
+        <div class="btn">上传图片</div>
+        <div class="downloadImg">下载图片</div>
+        <div class="img_group">
+            <img src="#" alt="" class="upImg">
+        </div>
+        <!-- <canvas id="myCanvas"></canvas> -->
+    </div>
+    <script src="./jszip.min.js"></script>
+    <script src="./FileSaver.js"></script>
+    <script src="./conversion.js"></script>
+    <script type="text/javascript">
+        $(document).ready(() => {
+            $('.btn').on('click', function () {
+                $('#upFile').click()
+            })
+
+            $('#upFile').on('change', function () {
+                previewFile()
+            })
+
+
+            function previewFile(params) {
+                var file = document.querySelector('input[type=file]').files[0];
+                console.log(file.size)
+                var reader = new FileReader();
+                reader.readAsDataURL(file)
+                reader.onload = function (e) {
+                    var img = new Image();
+                    img.src = e.target.result;
+                    fileFun(reader.result)
+                }
+            }
+
+            var dataUrlArr = []
+            var zip = new JSZip();
+            var imgFolder = zip.folder("images");
+
+            function calcImg(img, w, h) {
+                var remain = h % 1500
+                var num = parseInt(h / 1500)
+                if (num >= 1) {
+                    for (let i = 0; i < num; i++) {
+                        let newCanvas = document.createElement('canvas')
+                        let newCtx = newCanvas.getContext('2d')
+                        newCanvas.width = 750
+                        newCanvas.height = 1500
+                        $('.container').append(newCanvas)
+                        newCtx.drawImage(img, 0, i * -1500, w, h);
+                        downAndCompress(newCanvas, i)
+
+                    }
+                }
+                if (remain >= 0) {
+                    let newCanvas = document.createElement('canvas')
+                    let newCtx = newCanvas.getContext('2d')
+                    newCanvas.width = 750
+                    newCanvas.height = remain
+                    $('.container').append(newCanvas)
+                    newCtx.drawImage(img, 0, num * -1500, w, h);
+                    downAndCompress(newCanvas, 'remain')
+
+                }
+            }
+
+
+            function downAndCompress(canvas, name) {
+                canvas.toBlob(async (blob) => {
+                    let res = await imageConversion.compressAccurately(blob, 280)
+                    console.log(res)
+                    imgFolder.file(`${name}.jpg`, res);
+                }, "image/jpeg", 1)
+                // imageConversion.compressAccurately(blob, 200).then(res => {
+                //     console.log(res);
+                // })
+
+            }
+
+            function downloadImg(params) {
+                zip.generateAsync({
+                    type: "blob"
+                }).then(function (content) {
+                    // content就是blob数据，这里以example.zip名称下载
+                    // 使用了FileSaver.js
+                    saveAs(content, "example.zip");
+                });
+
+            }
+
+            function fileFun(base) {
+                var image = new Image();
+                var dataUrl, oldImg
+                image.src = base
+                image.onload = function () {
+                    // 图片原始尺寸
+                    var originWidth = this.width;
+                    var originHeight = this.height;
+                    // 最大尺寸限制
+                    var maxWidth = 750
+                    var maxHight = 1500
+                    // 目标尺寸
+                    var targetWidth = maxWidth,
+                        targetHeight = Math.round(originHeight * (maxWidth / originWidth));
+
+                    calcImg(this, targetWidth, targetHeight)
+                    // var imgData = canvas.toDataURL("image/jpeg", 1);
+                }
+
+            }
+
+            $('.downloadImg').on('click', function () {
+                downloadImg()
+            })
+
+
+
+        })
+    </script>
+</body>
+
+</html>
